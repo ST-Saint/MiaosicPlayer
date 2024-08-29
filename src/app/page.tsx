@@ -22,6 +22,7 @@ import { useInfiniteScroll } from '@nextui-org/use-infinite-scroll';
 
 import dayjs from 'dayjs';
 import { Howl, Howler } from 'howler';
+import ControlPanel from './control-panel';
 
 import {
     AuthType,
@@ -42,46 +43,16 @@ interface iSong {
 }
 
 const client = createClient('http://localhost:80/music/', {
-    authType: AuthType.Password,
-    username: 'yayu',
-    password: '',
+    authType: AuthType.None,
 });
 
-async function getFile() {
-    const directoryItems =
+async function getWebDAV() {
+    const webdavItems =
         await client.getDirectoryContents('');
-    return directoryItems;
+    return webdavItems;
 }
 
 let sound: Howl | null = null;
-
-async function getAudio(filename: string) {
-    if (typeof filename === 'string') {
-        const filenameArray = filename.split('.');
-        const audioFormat =
-            filenameArray[filenameArray.length - 1];
-
-        const audioBuffer: BufferLike =
-            (await client.getFileContents(
-                filename,
-            )) as BufferLike;
-
-        const audoByteArray = new Uint8Array(audioBuffer);
-        const blob = new Blob([audoByteArray], {
-            type: 'music/' + audioFormat,
-        });
-        const howlSource = URL.createObjectURL(blob);
-        if (sound) {
-            sound.stop();
-        }
-        sound = new Howl({
-            src: [howlSource],
-            format: [audioFormat],
-        });
-
-        sound.play();
-    }
-}
 
 const FileStatSortComp = (fa: FileStat, fb: FileStat) => {
     return -dayjsCompare(fa.lastmod, fb.lastmod);
@@ -91,23 +62,68 @@ const dayjsCompare = (dateA: string, dataB: string) => {
     return dayjs(dateA) < dayjs(dataB) ? -1 : 1;
 };
 
-function PlayListTable() {
-    const [playlist, setPlayList] = React.useState<
+interface iPlaylistTableProps {
+    sound?: Howl;
+    setSound: (sound: Howl) => void;
+}
+
+function PlaylistTable(props: iPlaylistTableProps) {
+    let { sound, setSound } = props;
+    const [playlist, setPlaylist] = React.useState<
         FileStat[]
     >([]);
     const [isLoading, setIsLoading] = React.useState(true);
     const [page, setPage] = React.useState(1);
-    const rowsPerPage = 15;
+    const rowsPerPage = 17;
     const getPlaylist = async () => {
         if (playlist.length === 0) {
-            const pl = (await getFile()) as FileStat[];
+            const pl = (await getWebDAV()) as FileStat[];
             pl.sort(FileStatSortComp);
-            setPlayList(pl);
+            setPlaylist(pl);
             return pl;
         } else {
             return playlist;
         }
     };
+
+    async function getAudio(index: number) {
+        if (index < playlist.length) {
+            const audioFileStat = playlist[index];
+            const { filename } = audioFileStat;
+            const filenameArray = filename.split('.');
+            const audioFormat =
+                filenameArray[filenameArray.length - 1];
+
+            const audioBuffer: BufferLike =
+                (await client.getFileContents(
+                    filename,
+                )) as BufferLike;
+
+            const audoByteArray = new Uint8Array(
+                audioBuffer,
+            );
+            const blob = new Blob([audoByteArray], {
+                type: 'music/' + audioFormat,
+            });
+            const howlSource = URL.createObjectURL(blob);
+            if (sound) {
+                sound.stop();
+            }
+            const source = new Howl({
+                src: [howlSource],
+                format: [audioFormat],
+            });
+            setSound(source);
+            source.play();
+            source.once('end', () => {
+                if (index == playlist.length - 1) {
+                    getAudio(0);
+                } else {
+                    getAudio(index + 1);
+                }
+            });
+        }
+    }
 
     let list = useAsyncList({
         async load({ signal }) {
@@ -165,15 +181,19 @@ function PlayListTable() {
 
     return (
         <Table
+            className='h-full'
             aria-label='Playlist Table'
             color='secondary'
             selectionMode='multiple'
             sortDescriptor={list.sortDescriptor}
             onSortChange={list.sort}
-            onRowAction={(audioFile) =>
-                getAudio(audioFile as string)
+            onRowAction={(audioIndex) =>
+                getAudio(Number(audioIndex))
             }
+            layout='auto'
+            showSelectionCheckboxes={false}
             selectionBehavior='replace'
+            bottomContentPlacement='outside'
             bottomContent={
                 <div className='flex w-full justify-center'>
                     <Pagination
@@ -204,9 +224,13 @@ function PlayListTable() {
                 emptyContent={'No song in the playlist'}
             >
                 {pageItems.map((song: FileStat, index) => {
+                    const songIndex: number =
+                        (page - 1) * rowsPerPage + index;
                     return (
-                        <TableRow key={song.filename}>
-                            <TableCell>{index}</TableCell>
+                        <TableRow key={songIndex}>
+                            <TableCell>
+                                {songIndex}
+                            </TableCell>
                             <TableCell>
                                 {song.etag}
                             </TableCell>
@@ -228,22 +252,22 @@ function PlayListTable() {
 
 export default function Home() {
     const [volume, setVolume] = useState(50);
-
+    const [sound, setSound] = useState<Howl>();
     return (
         <>
-            <PlayListTable />
-            <Slider
-                label='Volume'
-                step={1}
-                maxValue={100}
-                minValue={0}
-                value={volume}
-                onChange={(vol) => {
-                    setVolume(vol as number);
-                    sound?.volume(volume/100);
-                }}
-                className='max-w-md'
-            />
+            <div className='h-[90vh] w-[80%] mx-auto'>
+                <PlaylistTable
+                    sound={sound}
+                    setSound={setSound}
+                />
+            </div>
+            <div className='h-[10vh] w-[80%] mx-auto'>
+                <ControlPanel
+                    volume={volume}
+                    sound={sound}
+                    setVolume={setVolume}
+                />
+            </div>
         </>
     );
 }
