@@ -39,6 +39,9 @@ const ControlPanel = (props: iControlPanelProps) => {
         }
     };
 
+    const [loopPlayMode, setLoopPlayMode] = useState(true);
+    const [randPlayMode, setRandPlayMode] = useState(false);
+
     const [playing, setPlaying] = useState(false);
 
     const togglePlaying = () => {
@@ -92,12 +95,32 @@ const ControlPanel = (props: iControlPanelProps) => {
             />
             <div className='flex flex-row mx-auto max-w-xl justify-evenly w-full items-end'>
                 <div className='flex flex-none items-center justify-center w-1/6'>
-                    <Button variant='light'>
+                    <Button
+                        variant='light'
+                        color={
+                            loopPlayMode
+                                ? 'secondary'
+                                : 'default'
+                        }
+                        onPress={() => {
+                            setLoopPlayMode(!loopPlayMode);
+                        }}
+                    >
                         <FaRedoAlt />
                     </Button>
                 </div>
                 <div className='flex flex-none items-center justify-center w-1/6'>
-                    <Button variant='light'>
+                    <Button
+                        variant='light'
+                        color={
+                            randPlayMode
+                                ? 'secondary'
+                                : 'default'
+                        }
+                        onPress={() => {
+                            setRandPlayMode(!randPlayMode);
+                        }}
+                    >
                         <FaRandom />
                     </Button>
                 </div>
@@ -121,7 +144,7 @@ const ControlPanel = (props: iControlPanelProps) => {
                     </Button>
                 </div>
                 <div className='flex flex-none items-center justify-center w-1/6'>
-                    <Button variant='light'></Button>
+                    <Button variant='light' isDisabled></Button>
                 </div>
                 <div className='flex flex-none items-center justify-center w-1/6'>
                     <Popover
