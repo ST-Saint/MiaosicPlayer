@@ -171,7 +171,7 @@ const ControlPanel = (props: iControlPanelProps) => {
                                     setVolume(
                                         vol as number,
                                     );
-                                    sound?.volume(
+                                    Howler.volume(
                                         volume / 100,
                                     );
                                 }}

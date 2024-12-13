@@ -147,30 +147,37 @@ function PlaylistTable(props: iPlaylistTableProps) {
         },
         async sort({ items, sortDescriptor }) {
             let comp_func = (
-                first: string,
-                second: string,
+                first: any,
+                second: any,
             ) => {
-                return first < second ? -1 : 1;
+                return first.toString() < second.toString() ? -1 : 1;
             };
 
             if (sortDescriptor.column == 'lastmod') {
                 comp_func = dayjsCompare;
             }
             return {
-                items: items.sort((a, b) => {
-                    let first = a[sortDescriptor.column];
-                    let second = b[sortDescriptor.column];
-                    let cmp = comp_func(first, second);
+                items: items.sort(
+                    (a: unknown, b: unknown) => {
+                        let fa = a as FileStat;
+                        let fb = b as FileStat;
+                        let column: keyof FileStat =
+                            (sortDescriptor.column ||
+                                'basename') as keyof FileStat;
+                        let first = fa[column];
+                        let second = fb[column];
+                        let cmp = comp_func(first, second);
 
-                    if (
-                        sortDescriptor.direction ===
-                        'descending'
-                    ) {
-                        cmp *= -1;
-                    }
+                        if (
+                            sortDescriptor.direction ===
+                            'descending'
+                        ) {
+                            cmp *= -1;
+                        }
 
-                    return cmp;
-                }),
+                        return cmp;
+                    },
+                ),
             };
         },
     });
@@ -282,7 +289,7 @@ function PlaylistTable(props: iPlaylistTableProps) {
     );
 }
 
-function PlaylistPanel(props) {
+function PlaylistPanel(props: any) {
     return (
         <>
             <PlaylistTable {...props} />
